@@ -1,0 +1,72 @@
+# Runs Ethereum execution spec tests (EEST).
+#
+# To add a new EEST test suite to the workflow, add the following:
+#
+# - The tag for the release
+# - The name of the release artifact (e.g. `fixtures.tar.gz`)
+#
+# The workflow will download each suite in parallel in a matrix, and run the blockchain tests and blockchain engine tests inside.
+#
+# The workflow will not run state tests, these are deferred to revm.
+
+# TODO(onbjerg): Have gk or jen include this as a requirement for the merge queue
+
+name: eest
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main, onbjerg/eest] # todo: temp
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  # build reest
+  # save to cache
+  setup:
+    runs-on:
+      group: Reth
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+  # restore reest from cache
+  # download fixtures, untar
+  # run with reest
+  test:
+    name: test (${{ matrix.tag }}, ${{ matrix.type }})
+    needs: setup
+    runs-on:
+      group: Reth
+    strategy:
+      matrix:
+        # TODO(onbjerg): For some reason just specifying type as a top-level matrix value
+        # ignores one of the includes, so instead I have to duplicate type across matrix members
+        include:
+          # Stable
+          - tag: v3.0.0
+            artifact: fixtures_stable.tar.gz
+            type: blockchain_tests
+          # Pectra
+          - tag: pectra-devnet-4@v1.0.1
+            artifact: fixtures_pectra-devnet-4.tar.gz
+            type: blockchain_tests_engine
+          - tag: pectra-devnet-4@v1.0.1
+            artifact: fixtures_pectra-devnet-4.tar.gz
+            type: blockchain_tests
+    steps:
+      - name: Download fixtures
+        run: |
+          wget https://github.com/ethereum/execution-spec-tests/releases/download/${{ matrix.tag }}/${{ matrix.artifact }}
+          tar -xvzf ${{ matrix.artifact }}
+          rm ${{ matrix.artifact }}
