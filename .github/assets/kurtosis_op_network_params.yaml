@@ -11,6 +11,7 @@ optimism_package:
         el_image: "ghcr.io/paradigmxyz/op-reth:kurtosis-ci"
         cl_type: op-node
       - el_type: op-geth
+        el_image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:optimism
         cl_type: op-node
       batcher_params:
         extra_params:
