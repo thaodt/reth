@@ -96,6 +96,10 @@ mod metrics;
 pub use metrics::{MeteredRequestFuture, RpcRequestMetricsService};
 use reth_rpc::eth::sim_bundle::EthSimBundle;
 
+// Rpc server otlp
+mod otlp;
+pub use otlp::OtlpService;
+
 // Rpc rate limiter
 pub mod rate_limiter;
 
