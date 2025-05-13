@@ -167,7 +167,7 @@ where
     Ok(reader)
 }
 
-/// Extracts a pair of [`FullBlockHeader`] and [`FullBlockBody`] from [`BlockTuple`].
+/// Extracts a pair of [`BlockHeader`] and [`BlockBody`] from [`BlockTuple`].
 pub fn decode<BH, BB, E>(block: Result<BlockTuple, E>) -> eyre::Result<(BH, BB)>
 where
     BH: BlockHeader,
