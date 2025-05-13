@@ -8,9 +8,9 @@ use reth_era::era1_file::Era1Reader;
 use reth_era_downloader::{read_dir, EraClient, EraMeta, EraStream, EraStreamConfig};
 use reth_era_utils as era;
 use reth_etl::Collector;
-use reth_primitives_traits::{Block, FullBlockBody, FullBlockHeader, NodePrimitives};
+use reth_primitives_traits::{FullBlockBody, FullBlockHeader, NodePrimitives};
 use reth_provider::{
-    BlockHashReader, BlockReader, BlockWriter, DBProvider, HeaderProvider, NodePrimitivesProvider,
+    BlockHashReader, BlockReader, BlockWriter, DBProvider, HeaderProvider,
     StaticFileProviderFactory, StaticFileWriter, StorageLocation,
 };
 use reth_stages_api::{ExecInput, ExecOutput, Stage, StageError, UnwindInput, UnwindOutput};
@@ -129,18 +129,14 @@ impl<BH, BB, F> EraStage<BH, BB, F> {
     }
 }
 
-impl<Provider, B, BB, BH, F> Stage<Provider> for EraStage<BH, BB, F>
+impl<Provider, F, N> Stage<Provider> for EraStage<N::BlockHeader, N::BlockBody, F>
 where
-    B: Block<Header=BH, Body=BB>,
-    BH: FullBlockHeader + Value,
-    BB: FullBlockBody<
-        Transaction=<<Provider as NodePrimitivesProvider>::Primitives as NodePrimitives>::SignedTx,
-        OmmerHeader=BH,
-    >,
-    Provider: DBProvider<Tx: DbTxMut> + StaticFileProviderFactory + BlockWriter<Block=B> + BlockReader<Block=B>,
-    <Provider as NodePrimitivesProvider>::Primitives:
-    NodePrimitives<BlockHeader=BH, BlockBody=BB>,
-    F: EraStreamFactory<BH, BB> + Send + Sync + Clone,
+    Provider: DBProvider<Tx: DbTxMut>
+        + StaticFileProviderFactory<Primitives = N>
+        + BlockWriter<Block = N::Block>
+        + BlockReader<Block = N::Block>,
+    F: EraStreamFactory<N::BlockHeader, N::BlockBody> + Send + Sync + Clone,
+    N: NodePrimitives<BlockHeader: Value>,
 {
     fn id(&self) -> StageId {
         StageId::Era
