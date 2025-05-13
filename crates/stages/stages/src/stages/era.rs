@@ -142,7 +142,11 @@ where
         StageId::Era
     }
 
-    fn poll_execute_ready(&mut self, cx: &mut Context<'_>, input: ExecInput) -> Poll<Result<(), StageError>> {
+    fn poll_execute_ready(
+        &mut self,
+        cx: &mut Context<'_>,
+        input: ExecInput,
+    ) -> Poll<Result<(), StageError>> {
         if input.target_reached() || self.item.is_some() {
             return Poll::Ready(Ok(()));
         }
@@ -153,7 +157,10 @@ where
             }
         }
         if let Some(stream) = &mut self.stream {
-            if let Some(next) = ready!(stream.poll_next_unpin(cx)).transpose().map_err(|e| StageError::Fatal(e.into()))? {
+            if let Some(next) = ready!(stream.poll_next_unpin(cx))
+                .transpose()
+                .map_err(|e| StageError::Fatal(e.into()))?
+            {
                 self.item.replace(next);
             }
         }
@@ -180,7 +187,15 @@ where
         // order
         let mut writer = static_file_provider.latest_writer(StaticFileSegment::Headers)?;
 
-        let height = era::process_iter(era, &mut writer, provider, &mut self.hash_collector, &mut td, last_header_number..=input.target()).map_err(|e| StageError::Fatal(e.into()))?;
+        let height = era::process_iter(
+            era,
+            &mut writer,
+            provider,
+            &mut self.hash_collector,
+            &mut td,
+            last_header_number..=input.target(),
+        )
+        .map_err(|e| StageError::Fatal(e.into()))?;
 
         self.last_block_height.replace(height);
 
@@ -211,8 +226,8 @@ where
             // Wipe any unprocessed era files in the download temp directory
             source.cleanup();
 
-            // First unwind the db tables, until the unwind_to block number. use the walker to unwind
-            // HeaderNumbers based on the index in CanonicalHeaders
+            // First unwind the db tables, until the unwind_to block number. use the walker to
+            // unwind HeaderNumbers based on the index in CanonicalHeaders
             // unwind from the next block number since the unwind_to block is exclusive
             provider
                 .tx_ref()
@@ -224,8 +239,8 @@ where
                 .tx_ref()
                 .unwind_table_by_num::<tables::HeaderTerminalDifficulties>(input.unwind_to)?;
 
-            // determine how many headers to unwind from the static files based on the highest block and
-            // the unwind_to block
+            // determine how many headers to unwind from the static files based on the highest block
+            // and the unwind_to block
             let static_file_provider = provider.static_file_provider();
             let highest_block = static_file_provider
                 .get_highest_static_file_block(StaticFileSegment::Headers)
@@ -233,11 +248,13 @@ where
             let static_file_headers_to_unwind = highest_block - input.unwind_to;
             for block_number in (input.unwind_to + 1)..=highest_block {
                 let hash = static_file_provider.block_hash(block_number)?;
-                // we have to delete from HeaderNumbers here as well as in the above unwind, since that
-                // mapping contains entries for both headers in the db and headers in static files
+                // we have to delete from HeaderNumbers here as well as in the above unwind, since
+                // that mapping contains entries for both headers in the db and
+                // headers in static files
                 //
-                // so if we are unwinding past the lowest block in the db, we have to iterate through
-                // the HeaderNumbers entries that we'll delete in static files below
+                // so if we are unwinding past the lowest block in the db, we have to iterate
+                // through the HeaderNumbers entries that we'll delete in static
+                // files below
                 if let Some(header_hash) = hash {
                     provider.tx_ref().delete::<tables::HeaderNumbers>(header_hash, None)?;
                 }
