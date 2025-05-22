@@ -5,118 +5,17 @@
 
 use crate::{
     blobstore::BlobStoreUpdates,
-    maintain::{
-        canon_processor::CanonEventProcessor,
-        drift_monitor::{DriftMonitor, DriftMonitorResult, PoolDriftState},
-    },
+    maintain::{canon_processor::CanonEventProcessor, drift_monitor::DriftMonitor},
     traits::TransactionPoolExt,
     PoolTransaction,
 };
-use alloy_primitives::{Address, BlockHash, BlockNumber};
+use alloy_primitives::BlockNumber;
 use futures_util::Future;
 use reth_chain_state::CanonStateNotification;
 use reth_chainspec::ChainSpecProvider;
 use reth_primitives_traits::NodePrimitives;
 use reth_storage_api::{BlockReaderIdExt, StateProviderFactory};
-use std::{collections::HashSet, pin::Pin};
-
-/// Trait defining the interface for a drift monitor
-pub trait DriftMonitoring<Client>: Future<Output = DriftMonitorResult> + Send {
-    /// Returns true if the monitor is currently reloading accounts
-    fn is_reloading(&self) -> bool;
-
-    /// Returns the current drift state
-    fn state(&self) -> PoolDriftState;
-
-    /// Set the drift state
-    fn set_state(&mut self, state: PoolDriftState);
-
-    /// Mark the first event as received
-    fn on_first_event(&mut self);
-
-    /// Set dirty addresses to be reloaded
-    fn set_dirty_addresses(&mut self, addresses: HashSet<Address>);
-
-    /// Add addresses to the dirty set
-    fn add_dirty_addresses<I>(&mut self, addresses: I)
-    where
-        I: IntoIterator<Item = Address>;
-
-    /// Remove an address from the dirty set
-    fn remove_dirty_address(&mut self, address: &Address) -> bool;
-
-    /// Check if there are dirty addresses
-    fn has_dirty_addresses(&self) -> bool;
-
-    /// Start reloading addresses from state
-    fn start_reload_accounts<Spawner>(
-        &mut self,
-        client: Client,
-        at: BlockHash,
-        task_spawner: &Spawner,
-    ) where
-        Client: StateProviderFactory + Clone + 'static,
-        Spawner: reth_tasks::TaskSpawner + 'static;
-
-    /// Update metrics
-    fn update_metrics(&self);
-}
-
-impl<Client> DriftMonitoring<Client> for DriftMonitor
-where
-    Client: 'static,
-{
-    fn is_reloading(&self) -> bool {
-        Self::is_reloading(self)
-    }
-
-    fn state(&self) -> PoolDriftState {
-        Self::state(self)
-    }
-
-    fn set_state(&mut self, state: PoolDriftState) {
-        Self::set_state(self, state)
-    }
-
-    fn on_first_event(&mut self) {
-        Self::on_first_event(self)
-    }
-
-    fn set_dirty_addresses(&mut self, addresses: HashSet<Address>) {
-        Self::set_dirty_addresses(self, addresses)
-    }
-
-    fn add_dirty_addresses<I>(&mut self, addresses: I)
-    where
-        I: IntoIterator<Item = Address>,
-    {
-        Self::add_dirty_addresses(self, addresses)
-    }
-
-    fn remove_dirty_address(&mut self, address: &Address) -> bool {
-        Self::remove_dirty_address(self, address)
-    }
-
-    fn has_dirty_addresses(&self) -> bool {
-        Self::has_dirty_addresses(self)
-    }
-
-    fn start_reload_accounts<Spawner>(
-        &mut self,
-        client: Client,
-        at: BlockHash,
-        task_spawner: &Spawner,
-    ) where
-        Client: StateProviderFactory + Clone + 'static,
-        Spawner: reth_tasks::TaskSpawner + 'static,
-    {
-        Self::start_reload_accounts(self, client, at, task_spawner)
-    }
-
-    fn update_metrics(&self) {
-        Self::update_metrics(self)
-    }
-}
+use std::pin::Pin;
 
 /// Trait defining the interface for canonical chain event processing
 pub trait CanonProcessing<N, Client, P>
@@ -126,26 +25,22 @@ where
     P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + 'static,
 {
     /// Process a reorg event - returns true if the event was a reorg and was processed
-    fn process_reorg<'a, M>(
+    fn process_reorg<'a>(
         &'a mut self,
         event: CanonStateNotification<N>,
         client: &'a Client,
         pool: &'a P,
-        drift_monitor: &'a mut M,
-    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>
-    where
-        M: DriftMonitoring<Client> + 'a;
+        drift_monitor: &'a mut DriftMonitor,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>;
 
     /// Process a commit event - returns true if the event was a commit and was processed
-    fn process_commit<'a, M>(
+    fn process_commit<'a>(
         &'a mut self,
         event: CanonStateNotification<N>,
         client: &'a Client,
         pool: &'a P,
-        drift_monitor: &'a mut M,
-    ) -> bool
-    where
-        M: DriftMonitoring<Client> + 'a;
+        drift_monitor: &'a mut DriftMonitor,
+    ) -> bool;
 
     /// Update finalized blocks and return finalized blob hashes if any
     fn update_finalized(&mut self, client: &Client) -> Option<BlobStoreUpdates>;
@@ -160,29 +55,23 @@ where
     Client: StateProviderFactory + BlockReaderIdExt + ChainSpecProvider + Clone + 'static,
     P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + 'static,
 {
-    fn process_reorg<'a, M>(
+    fn process_reorg<'a>(
         &'a mut self,
         event: CanonStateNotification<N>,
         client: &'a Client,
         pool: &'a P,
-        drift_monitor: &'a mut M,
-    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>
-    where
-        M: DriftMonitoring<Client> + Send + 'a,
-    {
+        drift_monitor: &'a mut DriftMonitor,
+    ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
         Box::pin(async move { self.process_reorg(event, client, pool, drift_monitor).await })
     }
 
-    fn process_commit<'a, M>(
+    fn process_commit<'a>(
         &'a mut self,
         event: CanonStateNotification<N>,
         client: &'a Client,
         pool: &'a P,
-        drift_monitor: &'a mut M,
-    ) -> bool
-    where
-        M: DriftMonitoring<Client> + 'a,
-    {
+        drift_monitor: &'a mut DriftMonitor,
+    ) -> bool {
         self.process_commit(event, client, pool, drift_monitor)
     }
 
@@ -198,21 +87,13 @@ where
 /// Pool maintainer component factory
 ///
 /// This trait allows creating custom pool maintainer components
-pub trait PoolMaintainerComponentFactory<N, Client, P, M, C>
+pub trait PoolMaintainerComponentFactory<N, Client, P, C>
 where
     N: NodePrimitives,
     Client: StateProviderFactory + BlockReaderIdExt + ChainSpecProvider + Clone + 'static,
     P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + 'static,
-    M: DriftMonitoring<Client>,
     C: CanonProcessing<N, Client, P>,
 {
-    /// Create a drift monitor
-    fn create_drift_monitor(
-        &self,
-        max_reload_accounts: usize,
-        metrics: crate::metrics::MaintainPoolMetrics,
-    ) -> M;
-
     /// Create a canon processor
     fn create_canon_processor(
         &self,
@@ -226,22 +107,13 @@ where
 #[derive(Debug, Clone)]
 pub struct DefaultComponentFactory;
 
-impl<N, Client, P>
-    PoolMaintainerComponentFactory<N, Client, P, DriftMonitor, CanonEventProcessor<N>>
+impl<N, Client, P> PoolMaintainerComponentFactory<N, Client, P, CanonEventProcessor<N>>
     for DefaultComponentFactory
 where
     N: NodePrimitives,
     Client: StateProviderFactory + BlockReaderIdExt + ChainSpecProvider + Clone + 'static,
     P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + 'static,
 {
-    fn create_drift_monitor(
-        &self,
-        max_reload_accounts: usize,
-        metrics: crate::metrics::MaintainPoolMetrics,
-    ) -> DriftMonitor {
-        DriftMonitor::new(max_reload_accounts, metrics)
-    }
-
     fn create_canon_processor(
         &self,
         finalized_block: Option<BlockNumber>,

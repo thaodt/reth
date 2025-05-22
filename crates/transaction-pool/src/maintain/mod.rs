@@ -28,9 +28,7 @@ mod tests;
 // Re-export key components
 pub use canon_processor::{CanonEventProcessor, CanonEventProcessorConfig, FinalizedBlockTracker};
 pub use drift_monitor::{DriftMonitor, LoadedAccounts, PoolDriftState};
-pub use interfaces::{
-    CanonProcessing, DefaultComponentFactory, DriftMonitoring, PoolMaintainerComponentFactory,
-};
+pub use interfaces::{CanonProcessing, DefaultComponentFactory, PoolMaintainerComponentFactory};
 
 /// Maximum amount of time non-executable transaction are queued.
 pub const MAX_QUEUED_TRANSACTION_LIFETIME: Duration = Duration::from_secs(3 * 60 * 60);

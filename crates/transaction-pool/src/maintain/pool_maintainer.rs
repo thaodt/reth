@@ -2,7 +2,7 @@ use crate::{
     blobstore::BlobStoreUpdates,
     maintain::{
         drift_monitor::{DriftMonitor, DriftMonitorResult},
-        interfaces::{CanonProcessing, DriftMonitoring, PoolMaintainerComponentFactory},
+        interfaces::{CanonProcessing, PoolMaintainerComponentFactory},
         CanonEventProcessor, CanonEventProcessorConfig, MaintainPoolConfig, PoolDriftState,
     },
     metrics::MaintainPoolMetrics,
@@ -62,19 +62,18 @@ where
     }
 
     /// Build the pool maintainer with custom component factory
-    pub(crate) fn build_with_factory<F, M, C>(
+    pub(crate) fn build_with_factory<F, C>(
         self,
         factory: F,
-    ) -> PoolMaintainer<N, Client, P, St, Tasks, M, C>
+    ) -> PoolMaintainer<N, Client, P, St, Tasks, C>
     where
-        F: PoolMaintainerComponentFactory<N, Client, P, M, C> + Clone + Send + Unpin + 'static,
-        M: DriftMonitoring<Client> + Send + Clone + 'static,
+        F: PoolMaintainerComponentFactory<N, Client, P, C> + Clone + Send + Unpin + 'static,
         C: CanonProcessing<N, Client, P> + Send + Clone + 'static,
     {
         let metrics = MaintainPoolMetrics::default();
         let MaintainPoolConfig { max_reload_accounts, max_update_depth, .. } = self.config;
 
-        let drift_monitor = factory.create_drift_monitor(max_reload_accounts, metrics.clone());
+        let drift_monitor = DriftMonitor::new(max_reload_accounts, metrics.clone());
         let canon_processor_config = CanonEventProcessorConfig { max_update_depth };
         let canon_processor = factory.create_canon_processor(
             self.client.finalized_block_number().ok().flatten(),
@@ -129,18 +128,10 @@ impl std::fmt::Debug for PoolMaintainerState {
 
 /// The main pool maintainer
 #[derive(Debug)]
-pub(crate) struct PoolMaintainer<
-    N,
-    Client,
-    P,
-    St,
-    Tasks,
-    M = DriftMonitor,
-    C = CanonEventProcessor<N>,
-> where
+pub(crate) struct PoolMaintainer<N, Client, P, St, Tasks, C = CanonEventProcessor<N>>
+where
     N: NodePrimitives,
     P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + 'static,
-    M: DriftMonitoring<Client> + Send + Clone + 'static,
     Client: StateProviderFactory + BlockReaderIdExt + ChainSpecProvider + Clone + 'static,
     Tasks: TaskSpawner + 'static,
     C: CanonProcessing<N, Client, P> + Send + Clone + 'static,
@@ -152,7 +143,7 @@ pub(crate) struct PoolMaintainer<
     config: MaintainPoolConfig,
 
     // Internal state
-    drift_monitor: M,
+    drift_monitor: DriftMonitor,
     canon_processor: C,
     stale_eviction_interval: time::Interval,
 
@@ -165,14 +156,13 @@ pub(crate) struct PoolMaintainer<
     _phantom: std::marker::PhantomData<N>,
 }
 
-impl<N, Client, P, St, Tasks, M, C> PoolMaintainer<N, Client, P, St, Tasks, M, C>
+impl<N, Client, P, St, Tasks, C> PoolMaintainer<N, Client, P, St, Tasks, C>
 where
     N: NodePrimitives,
     Client: StateProviderFactory + BlockReaderIdExt + ChainSpecProvider + Clone + 'static,
     P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + 'static,
     St: Stream<Item = CanonStateNotification<N>> + Send + Unpin + 'static,
     Tasks: TaskSpawner + 'static,
-    M: DriftMonitoring<Client> + Send + Clone + 'static,
     C: CanonProcessing<N, Client, P> + Send + Clone + 'static,
 {
     /// Create a pool maintainer with custom components
@@ -183,7 +173,7 @@ where
         events: St,
         task_spawner: Tasks,
         config: MaintainPoolConfig,
-        drift_monitor: M,
+        drift_monitor: DriftMonitor,
         canon_processor: C,
     ) -> Self {
         let stale_eviction_interval = time::interval(config.max_tx_lifetime);
@@ -276,14 +266,13 @@ where
     }
 }
 
-impl<N, Client, P, St, Tasks, M, C> Future for PoolMaintainer<N, Client, P, St, Tasks, M, C>
+impl<N, Client, P, St, Tasks, C> Future for PoolMaintainer<N, Client, P, St, Tasks, C>
 where
     N: NodePrimitives,
     Client: StateProviderFactory + BlockReaderIdExt + ChainSpecProvider + Clone + Unpin + 'static,
     P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + Unpin + 'static,
     St: Stream<Item = CanonStateNotification<N>> + Send + Unpin + 'static,
     Tasks: TaskSpawner + 'static,
-    M: DriftMonitoring<Client> + Unpin + Send + Clone,
     C: CanonProcessing<N, Client, P> + Unpin + Send + Clone,
 {
     type Output = ();

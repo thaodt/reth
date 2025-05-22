@@ -137,17 +137,16 @@ where
     /// Returns a Future for processing an event with a generic drift monitor
     ///
     /// This is used by custom implementations with the `DriftMonitoring` trait
-    pub fn process_event_with_monitor<'a, Client, P, M>(
+    pub fn process_event_with_monitor<'a, Client, P>(
         &'a mut self,
         event: CanonStateNotification<N>,
         client: &'a Client,
         pool: &'a P,
-        drift_monitor: &'a mut M,
+        drift_monitor: &'a mut DriftMonitor,
     ) -> impl std::future::Future<Output = ()> + 'a
     where
         Client: reth_storage_api::StateProviderFactory + ChainSpecProvider + Clone + 'static,
         P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + 'static,
-        M: super::interfaces::DriftMonitoring<Client> + 'a,
     {
         let event_clone = event.clone();
         async move {
@@ -177,17 +176,16 @@ where
     }
 
     /// Process a reorg event with a generic drift monitor implementing `DriftMonitoring`
-    pub(crate) async fn process_reorg<Client, P, M>(
+    pub(crate) async fn process_reorg<Client, P>(
         &mut self,
         event: CanonStateNotification<N>,
         client: &Client,
         pool: &P,
-        drift_monitor: &mut M,
+        drift_monitor: &mut DriftMonitor,
     ) -> bool
     where
         Client: reth_storage_api::StateProviderFactory + ChainSpecProvider + Clone + 'static,
         P: TransactionPoolExt<Transaction: PoolTransaction<Consensus = N::SignedTx>> + 'static,
-        M: super::interfaces::DriftMonitoring<Client>,
     {
         match event {
             CanonStateNotification::Reorg { old, new } => {
@@ -319,17 +317,16 @@ where
     }
 
     /// Process a commit event with a generic drift monitor implementing `DriftMonitoring`
-    pub(crate) fn process_commit<Client, P, M>(
+    pub(crate) fn process_commit<Client, P>(
         &mut self,
         event: CanonStateNotification<N>,
         client: &Client,
         pool: &P,
-        drift_monitor: &mut M,
+        drift_monitor: &mut DriftMonitor,
     ) -> bool
     where
         Client: ChainSpecProvider,
         P: TransactionPoolExt,
-        M: super::interfaces::DriftMonitoring<Client>,
     {
         match event {
             CanonStateNotification::Commit { new } => {
