@@ -17,85 +17,6 @@ use std::{
 use tokio::sync::oneshot;
 use tracing::debug;
 
-/// Result of loading accounts from state
-#[derive(Default, Debug)]
-pub struct LoadedAccounts {
-    /// All accounts that were loaded
-    pub accounts: Vec<ChangedAccount>,
-    /// All accounts that failed to load
-    pub failed_to_load: Vec<Address>,
-}
-
-impl LoadedAccounts {
-    /// Loads all accounts at the given state
-    ///
-    /// Returns an error with all given addresses if the state is not available.
-    ///
-    /// Note: this expects _unique_ addresses
-    pub(crate) fn load_accounts<Client, I>(
-        client: Client,
-        at: BlockHash,
-        addresses: I,
-    ) -> Result<Self, Box<(HashSet<Address>, ProviderError)>>
-    where
-        I: IntoIterator<Item = Address>,
-        Client: StateProviderFactory,
-    {
-        let addresses = addresses.into_iter();
-        let mut res = Self::default();
-        let state = match client.history_by_block_hash(at) {
-            Ok(state) => state,
-            Err(err) => return Err(Box::new((addresses.collect(), err))),
-        };
-        for addr in addresses {
-            if let Ok(maybe_acc) = state.basic_account(&addr) {
-                let acc = maybe_acc
-                    .map(|acc| ChangedAccount {
-                        address: addr,
-                        nonce: acc.nonce,
-                        balance: acc.balance,
-                    })
-                    .unwrap_or_else(|| ChangedAccount::empty(addr));
-                res.accounts.push(acc)
-            } else {
-                // failed to load account.
-                res.failed_to_load.push(addr);
-            }
-        }
-        Ok(res)
-    }
-}
-
-/// Keeps track of the pool's state, whether the accounts in the pool are in sync with the actual
-/// state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PoolDriftState {
-    /// Pool is assumed to be in sync with the current state
-    InSync,
-    /// Pool could be out of sync with the state
-    Drifted,
-}
-
-impl PoolDriftState {
-    /// Returns `true` if the pool is assumed to be out of sync with the current state.
-    #[inline]
-    pub const fn is_drifted(&self) -> bool {
-        matches!(self, Self::Drifted)
-    }
-}
-
-/// The result of a drift monitoring operation
-#[derive(Debug)]
-pub enum DriftMonitorResult {
-    /// Accounts were loaded successfully
-    AccountsLoaded(LoadedAccounts),
-    /// The account reload future failed
-    Failed,
-}
-
-type ReloadAccountsFut =
-    Fuse<oneshot::Receiver<Result<LoadedAccounts, Box<(HashSet<Address>, ProviderError)>>>>;
-
 /// Monitors and handles transaction pool drift from the canonical state
 #[derive(Debug)]
 pub struct DriftMonitor {
@@ -287,6 +208,85 @@ impl Future for DriftMonitor {
         Poll::Pending
     }
 }
+
+/// Result of loading accounts from state
+#[derive(Default, Debug)]
+pub struct LoadedAccounts {
+    /// All accounts that were loaded
+    pub accounts: Vec<ChangedAccount>,
+    /// All accounts that failed to load
+    pub failed_to_load: Vec<Address>,
+}
+
+impl LoadedAccounts {
+    /// Loads all accounts at the given state
+    ///
+    /// Returns an error with all given addresses if the state is not available.
+    ///
+    /// Note: this expects _unique_ addresses
+    pub(crate) fn load_accounts<Client, I>(
+        client: Client,
+        at: BlockHash,
+        addresses: I,
+    ) -> Result<Self, Box<(HashSet<Address>, ProviderError)>>
+    where
+        I: IntoIterator<Item = Address>,
+        Client: StateProviderFactory,
+    {
+        let addresses = addresses.into_iter();
+        let mut res = Self::default();
+        let state = match client.history_by_block_hash(at) {
+            Ok(state) => state,
+            Err(err) => return Err(Box::new((addresses.collect(), err))),
+        };
+        for addr in addresses {
+            if let Ok(maybe_acc) = state.basic_account(&addr) {
+                let acc = maybe_acc
+                    .map(|acc| ChangedAccount {
+                        address: addr,
+                        nonce: acc.nonce,
+                        balance: acc.balance,
+                    })
+                    .unwrap_or_else(|| ChangedAccount::empty(addr));
+                res.accounts.push(acc)
+            } else {
+                // failed to load account.
+                res.failed_to_load.push(addr);
+            }
+        }
+        Ok(res)
+    }
+}
+
+/// Keeps track of the pool's state, whether the accounts in the pool are in sync with the actual
+/// state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PoolDriftState {
+    /// Pool is assumed to be in sync with the current state
+    InSync,
+    /// Pool could be out of sync with the state
+    Drifted,
+}
+
+impl PoolDriftState {
+    /// Returns `true` if the pool is assumed to be out of sync with the current state.
+    #[inline]
+    pub const fn is_drifted(&self) -> bool {
+        matches!(self, Self::Drifted)
+    }
+}
+
+/// The result of a drift monitoring operation
+#[derive(Debug)]
+pub enum DriftMonitorResult {
+    /// Accounts were loaded successfully
+    AccountsLoaded(LoadedAccounts),
+    /// The account reload future failed
+    Failed,
+}
+
+type ReloadAccountsFut =
+    Fuse<oneshot::Receiver<Result<LoadedAccounts, Box<(HashSet<Address>, ProviderError)>>>>;
 
 #[cfg(test)]
 mod tests {
