@@ -2,7 +2,7 @@
 
 use crate::{
     blobstore::{BlobStoreCanonTracker, BlobStoreUpdates},
-    maintain::drift_monitor::{load_accounts, DriftMonitor, LoadedAccounts, PoolDriftState},
+    maintain::drift_monitor::{DriftMonitor, LoadedAccounts, PoolDriftState},
     metrics::MaintainPoolMetrics,
     traits::{CanonicalStateUpdate, EthPoolTransaction, TransactionPool, TransactionPoolExt},
     BlockInfo, PoolTransaction, PoolUpdateKind,
@@ -230,26 +230,29 @@ where
                     .filter(|addr| !new_changed_accounts.contains(addr));
 
                 // for these we need to fetch the nonce+balance from the db at the new tip
-                let mut changed_accounts =
-                    match load_accounts(client.clone(), new_tip.hash(), missing_changed_acc) {
-                        Ok(LoadedAccounts { accounts, failed_to_load }) => {
-                            // extend accounts we failed to load from database
-                            drift_monitor.add_dirty_addresses(failed_to_load);
+                let mut changed_accounts = match LoadedAccounts::load_accounts(
+                    client.clone(),
+                    new_tip.hash(),
+                    missing_changed_acc,
+                ) {
+                    Ok(LoadedAccounts { accounts, failed_to_load }) => {
+                        // extend accounts we failed to load from database
+                        drift_monitor.add_dirty_addresses(failed_to_load);
 
-                            accounts
-                        }
-                        Err(err) => {
-                            let (addresses, err) = *err;
-                            debug!(
-                                target: "txpool",
-                                %err,
-                                "failed to load missing changed accounts at new tip: {:?}",
-                                new_tip.hash()
-                            );
-                            drift_monitor.add_dirty_addresses(addresses);
-                            vec![]
-                        }
-                    };
+                        accounts
+                    }
+                    Err(err) => {
+                        let (addresses, err) = *err;
+                        debug!(
+                            target: "txpool",
+                            %err,
+                            "failed to load missing changed accounts at new tip: {:?}",
+                            new_tip.hash()
+                        );
+                        drift_monitor.add_dirty_addresses(addresses);
+                        vec![]
+                    }
+                };
 
                 // also include all accounts from new chain
                 // we can use extend here because they are unique

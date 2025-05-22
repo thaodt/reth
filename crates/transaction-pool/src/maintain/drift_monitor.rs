@@ -26,38 +26,44 @@ pub struct LoadedAccounts {
     pub failed_to_load: Vec<Address>,
 }
 
-/// Loads all accounts at the given state
-///
-/// Returns an error with all given addresses if the state is not available.
-///
-/// Note: this expects _unique_ addresses
-pub(crate) fn load_accounts<Client, I>(
-    client: Client,
-    at: BlockHash,
-    addresses: I,
-) -> Result<LoadedAccounts, Box<(HashSet<Address>, ProviderError)>>
-where
-    I: IntoIterator<Item = Address>,
-    Client: StateProviderFactory,
-{
-    let addresses = addresses.into_iter();
-    let mut res = LoadedAccounts::default();
-    let state = match client.history_by_block_hash(at) {
-        Ok(state) => state,
-        Err(err) => return Err(Box::new((addresses.collect(), err))),
-    };
-    for addr in addresses {
-        if let Ok(maybe_acc) = state.basic_account(&addr) {
-            let acc = maybe_acc
-                .map(|acc| ChangedAccount { address: addr, nonce: acc.nonce, balance: acc.balance })
-                .unwrap_or_else(|| ChangedAccount::empty(addr));
-            res.accounts.push(acc)
-        } else {
-            // failed to load account.
-            res.failed_to_load.push(addr);
+impl LoadedAccounts {
+    /// Loads all accounts at the given state
+    ///
+    /// Returns an error with all given addresses if the state is not available.
+    ///
+    /// Note: this expects _unique_ addresses
+    pub(crate) fn load_accounts<Client, I>(
+        client: Client,
+        at: BlockHash,
+        addresses: I,
+    ) -> Result<Self, Box<(HashSet<Address>, ProviderError)>>
+    where
+        I: IntoIterator<Item = Address>,
+        Client: StateProviderFactory,
+    {
+        let addresses = addresses.into_iter();
+        let mut res = Self::default();
+        let state = match client.history_by_block_hash(at) {
+            Ok(state) => state,
+            Err(err) => return Err(Box::new((addresses.collect(), err))),
+        };
+        for addr in addresses {
+            if let Ok(maybe_acc) = state.basic_account(&addr) {
+                let acc = maybe_acc
+                    .map(|acc| ChangedAccount {
+                        address: addr,
+                        nonce: acc.nonce,
+                        balance: acc.balance,
+                    })
+                    .unwrap_or_else(|| ChangedAccount::empty(addr));
+                res.accounts.push(acc)
+            } else {
+                // failed to load account.
+                res.failed_to_load.push(addr);
+            }
         }
+        Ok(res)
     }
-    Ok(res)
 }
 
 /// Keeps track of the pool's state, whether the accounts in the pool are in sync with the actual
@@ -223,7 +229,7 @@ impl DriftMonitor {
             }
 
             async move {
-                let res = load_accounts(client, at, accs_to_reload);
+                let res = LoadedAccounts::load_accounts(client, at, accs_to_reload);
                 let _ = tx.send(res);
             }
             .boxed()
@@ -232,7 +238,7 @@ impl DriftMonitor {
             let accs_to_reload = std::mem::take(&mut self.dirty_addresses);
 
             async move {
-                let res = load_accounts(client, at, accs_to_reload);
+                let res = LoadedAccounts::load_accounts(client, at, accs_to_reload);
                 let _ = tx.send(res);
             }
             .boxed()
