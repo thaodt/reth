@@ -179,33 +179,28 @@ impl Future for DriftMonitor {
     type Output = DriftMonitorResult;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // Check if reload future is ready
-        if !self.reload_accounts_fut.is_terminated() {
-            match self.reload_accounts_fut.poll_unpin(cx) {
-                Poll::Ready(Ok(Ok(accounts))) => {
-                    // reloaded accounts successfully
-                    // extend accounts we failed to load from database
-                    self.dirty_addresses.extend(accounts.failed_to_load.iter().copied());
-                    return Poll::Ready(DriftMonitorResult::AccountsLoaded(accounts));
-                }
-                Poll::Ready(Ok(Err(res))) => {
-                    // failed to load accounts from state
-                    let (accs, err) = *res;
-                    debug!(target: "txpool", %err, "failed to load accounts");
-                    self.dirty_addresses.extend(accs);
-                    return Poll::Ready(DriftMonitorResult::Failed);
-                }
-                Poll::Ready(Err(_)) => {
-                    // failed to receive the accounts, sender dropped, only possible if task
-                    // panicked
-                    self.set_state(PoolDriftState::Drifted);
-                    return Poll::Ready(DriftMonitorResult::Failed);
-                }
-                Poll::Pending => return Poll::Pending,
+        match self.reload_accounts_fut.poll_unpin(cx) {
+            Poll::Ready(Ok(Ok(accounts))) => {
+                // reloaded accounts successfully
+                // extend accounts we failed to load from database
+                self.dirty_addresses.extend(accounts.failed_to_load.iter().copied());
+                Poll::Ready(DriftMonitorResult::AccountsLoaded(accounts))
             }
+            Poll::Ready(Ok(Err(res))) => {
+                // failed to load accounts from state
+                let (accs, err) = *res;
+                debug!(target: "txpool", %err, "failed to load accounts");
+                self.dirty_addresses.extend(accs);
+                Poll::Ready(DriftMonitorResult::Failed)
+            }
+            Poll::Ready(Err(_)) => {
+                // failed to receive the accounts, sender dropped, only possible if task
+                // panicked
+                self.set_state(PoolDriftState::Drifted);
+                Poll::Ready(DriftMonitorResult::Failed)
+            }
+            Poll::Pending => Poll::Pending,
         }
-        // no active reload operation - return Pending to avoid busy polling
-        Poll::Pending
     }
 }
 
