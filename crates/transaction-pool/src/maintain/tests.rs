@@ -1,15 +1,21 @@
 //! Tests for the transaction pool maintenance components
 
-use super::*;
 use crate::{
-    blobstore::InMemoryBlobStore, metrics::MaintainPoolMetrics,
-    validate::EthTransactionValidatorBuilder, CoinbaseTipOrdering, EthPooledTransaction, Pool,
-    TransactionOrigin,
+    blobstore::InMemoryBlobStore,
+    maintain::{
+        backup::backup_local_transactions_task, DriftMonitor, FinalizedBlockTracker,
+        LocalTransactionBackupConfig, PoolDriftState,
+    },
+    metrics::MaintainPoolMetrics,
+    traits::{PoolTransaction, TransactionPool},
+    validate::EthTransactionValidatorBuilder,
+    CoinbaseTipOrdering, EthPooledTransaction, Pool, TransactionOrigin,
 };
 use alloy_eips::eip2718::Decodable2718;
 use alloy_primitives::{hex, Address, U256};
 use reth_ethereum_primitives::{PooledTransactionVariant, TransactionSigned};
 use reth_fs_util as fs;
+use reth_primitives_traits::SignedTransaction;
 use reth_provider::test_utils::{ExtendedAccount, MockEthProvider};
 use reth_tasks::TaskManager;
 
