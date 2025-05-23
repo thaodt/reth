@@ -9,6 +9,7 @@ use reth_node_builder::{components::ExecutorBuilder, BuilderContext, NodeTypes};
 use reth_op::node::{OpBlockAssembler, OpEvmConfig, OpRethReceiptBuilder};
 use std::{future, future::Future, sync::Arc};
 
+#[derive(Default)]
 pub struct CustomExecutorBuilder;
 
 impl<Node: FullNodeTypes> ExecutorBuilder<Node> for CustomExecutorBuilder
