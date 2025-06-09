@@ -127,6 +127,8 @@ min-trace-logs = [
     "reth-ethereum-cli/min-trace-logs",
 ]
 
+http3 = ["reth-ethereum-cli/http3"]
+
 [[bin]]
 name = "reth"
 path = "src/main.rs"

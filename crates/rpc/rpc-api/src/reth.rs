@@ -1,6 +1,7 @@
 use alloy_eips::BlockId;
 use alloy_primitives::{Address, U256};
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
+#[allow(unused_imports)] // Used in macro
 use reth_chain_state::CanonStateNotification;
 use std::collections::HashMap;
 

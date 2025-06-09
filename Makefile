@@ -48,6 +48,13 @@ install: ## Build and install the reth binary under `~/.cargo/bin`.
 		--profile "$(PROFILE)" \
 		$(CARGO_INSTALL_EXTRA_FLAGS)
 
+.PHONY: install-http3
+install-http3: ## Build and install the reth binary with HTTP/3 support under `~/.cargo/bin`.
+	cargo install --path bin/reth --bin reth --force --locked \
+		--features "$(FEATURES),http3" \
+		--profile "$(PROFILE)" \
+		$(CARGO_INSTALL_EXTRA_FLAGS)
+
 .PHONY: install-op
 install-op: ## Build and install the op-reth binary under `~/.cargo/bin`.
 	cargo install --path crates/optimism/bin --bin op-reth --force --locked \
@@ -58,6 +65,10 @@ install-op: ## Build and install the op-reth binary under `~/.cargo/bin`.
 .PHONY: build
 build: ## Build the reth binary into `target` directory.
 	cargo build --bin reth --features "$(FEATURES)" --profile "$(PROFILE)"
+
+.PHONY: build-http3
+build-http3: ## Build the reth binary with HTTP/3 support into `target` directory.
+	cargo build --bin reth --features "$(FEATURES),http3" --profile "$(PROFILE)"
 
 # Environment variables for reproducible builds
 # Initialize RUSTFLAGS
@@ -373,6 +384,10 @@ update-book-cli: build-debug ## Update book cli documentation.
 .PHONY: profiling
 profiling: ## Builds `reth` with optimisations, but also symbols.
 	RUSTFLAGS="-C target-cpu=native" cargo build --profile profiling --features jemalloc,asm-keccak
+
+.PHONY: profiling-http3
+profiling-http3: ## Builds `reth` with HTTP/3 support and optimisations, but also symbols.
+	RUSTFLAGS="-C target-cpu=native" cargo build --profile profiling --features jemalloc,asm-keccak,http3
 
 .PHONY: profiling-op
 profiling-op: ## Builds `op-reth` with optimisations, but also symbols.

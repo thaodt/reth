@@ -84,7 +84,7 @@ async fn test_rpc_middleware() {
         .await
         .unwrap();
 
-    let client = handle.http_client().unwrap();
+    let client = handle.http_client().await.unwrap();
     EthApiClient::<Transaction, Block, Receipt, Header>::protocol_version(&client).await.unwrap();
     let count = mylayer.count.load(Ordering::Relaxed);
     assert_eq!(count, 1);

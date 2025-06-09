@@ -59,3 +59,6 @@ pub use trace::TraceApi;
 pub use txpool::TxPoolApi;
 pub use validation::{ValidationApi, ValidationApiConfig};
 pub use web3::Web3Api;
+
+// Re-export jsonrpsee's rpc_params macro for convenience
+pub use jsonrpsee::rpc_params;

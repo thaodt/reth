@@ -46,7 +46,7 @@ async fn test_auth_endpoints_http() {
     reth_tracing::init_test_tracing();
     let secret = JwtSecret::random();
     let handle = launch_auth(secret).await;
-    let client = handle.http_client();
+    let client = handle.http_client().await;
     test_basic_engine_calls(&client).await
 }
 

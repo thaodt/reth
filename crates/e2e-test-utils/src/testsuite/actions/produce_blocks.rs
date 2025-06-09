@@ -70,7 +70,7 @@ where
 
             let node_client = &env.node_clients[self.node_idx];
             let rpc_client = &node_client.rpc;
-            let engine_client = node_client.engine.http_client();
+            let engine_client = node_client.engine.http_client().await;
 
             // get the latest block to use as parent
             let latest_block =
@@ -232,7 +232,7 @@ where
                 env.last_producer_idx.ok_or_else(|| eyre::eyre!("No block producer selected"))?;
 
             let fcu_result = EngineApiClient::<Engine>::fork_choice_updated_v3(
-                &env.node_clients[producer_idx].engine.http_client(),
+                &env.node_clients[producer_idx].engine.http_client().await,
                 fork_choice_state,
                 Some(payload_attributes.clone().into()),
             )
@@ -257,8 +257,9 @@ where
                     parent_beacon_block_root: Some(B256::ZERO),
                 };
 
+                let engine_client = env.node_clients[producer_idx].engine.http_client().await;
                 let fresh_fcu_result = EngineApiClient::<Engine>::fork_choice_updated_v3(
-                    &env.node_clients[producer_idx].engine.http_client(),
+                    &engine_client,
                     fork_choice_state,
                     Some(fresh_payload_attributes.clone().into()),
                 )
@@ -281,11 +282,9 @@ where
 
             sleep(Duration::from_secs(1)).await;
 
-            let built_payload_envelope = EngineApiClient::<Engine>::get_payload_v3(
-                &env.node_clients[producer_idx].engine.http_client(),
-                payload_id,
-            )
-            .await?;
+            let engine_client_2 = env.node_clients[producer_idx].engine.http_client().await;
+            let built_payload_envelope =
+                EngineApiClient::<Engine>::get_payload_v3(&engine_client_2, payload_id).await?;
 
             // Store the payload attributes that were used to generate this payload
             let built_payload = payload_attributes.clone();
@@ -353,7 +352,7 @@ where
 
             for (idx, client) in env.node_clients.iter().enumerate() {
                 match EngineApiClient::<Engine>::fork_choice_updated_v3(
-                    &client.engine.http_client(),
+                    &client.engine.http_client().await,
                     fork_choice_state,
                     None,
                 )
@@ -516,11 +515,9 @@ where
                     .as_ref()
                     .ok_or_else(|| eyre::eyre!("No next built payload found"))?;
 
-                let built_payload = EngineApiClient::<Engine>::get_payload_v3(
-                    &client.engine.http_client(),
-                    payload_id,
-                )
-                .await?;
+                let engine_client = client.engine.http_client().await;
+                let built_payload =
+                    EngineApiClient::<Engine>::get_payload_v3(&engine_client, payload_id).await?;
 
                 let execution_payload_envelope: ExecutionPayloadEnvelopeV3 = built_payload.into();
                 let new_payload_block_hash = execution_payload_envelope
@@ -615,7 +612,7 @@ where
             let mut successful_broadcast: bool = false;
 
             for client in &env.node_clients {
-                let engine = client.engine.http_client();
+                let engine = client.engine.http_client().await;
 
                 // Broadcast the execution payload
                 let result = EngineApiClient::<Engine>::new_payload_v3(
@@ -727,7 +724,7 @@ where
                 .copied()
                 .ok_or_else(|| eyre::eyre!("Block tag '{}' not found in registry", self.tag))?;
 
-            let engine_client = env.node_clients[0].engine.http_client();
+            let engine_client = env.node_clients[0].engine.http_client().await;
             let fcu_state = ForkchoiceState {
                 head_block_hash: target_block.hash,
                 safe_block_hash: target_block.hash,
@@ -910,7 +907,7 @@ where
                     );
 
                     // send the corrupted payload via newPayload
-                    let engine_client = env.node_clients[0].engine.http_client();
+                    let engine_client = env.node_clients[0].engine.http_client().await;
                     // for simplicity, we'll use empty versioned hashes for invalid block testing
                     let versioned_hashes = Vec::new();
                     // use a random parent beacon block root since this is for invalid block testing

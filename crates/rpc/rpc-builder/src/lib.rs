@@ -24,6 +24,8 @@ use alloy_provider::{fillers::RecommendedFillers, Provider, ProviderBuilder};
 use core::marker::PhantomData;
 use error::{ConflictingModules, RpcError, ServerKind};
 use http::{header::AUTHORIZATION, HeaderMap};
+#[cfg(feature = "http3")]
+pub use jsonrpsee::server::http3::{CertificateConfig, Http3Config};
 use jsonrpsee::{
     core::RegisterMethodError,
     server::{
@@ -1077,6 +1079,12 @@ pub struct RpcServerConfig<RpcMiddleware = Identity> {
     jwt_secret: Option<JwtSecret>,
     /// Configurable RPC middleware
     rpc_middleware: RpcServiceBuilder<RpcMiddleware>,
+    /// Whether HTTP/3 is enabled
+    #[cfg(feature = "http3")]
+    http3_enabled: bool,
+    /// HTTP/3 configuration
+    #[cfg(feature = "http3")]
+    http3_config: Option<Http3Config>,
 }
 
 // === impl RpcServerConfig ===
@@ -1096,6 +1104,10 @@ impl Default for RpcServerConfig<Identity> {
             ipc_endpoint: None,
             jwt_secret: None,
             rpc_middleware: RpcServiceBuilder::new(),
+            #[cfg(feature = "http3")]
+            http3_enabled: false,
+            #[cfg(feature = "http3")]
+            http3_config: None,
         }
     }
 }
@@ -1160,6 +1172,10 @@ impl<RpcMiddleware> RpcServerConfig<RpcMiddleware> {
             ipc_endpoint: self.ipc_endpoint,
             jwt_secret: self.jwt_secret,
             rpc_middleware,
+            #[cfg(feature = "http3")]
+            http3_enabled: self.http3_enabled,
+            #[cfg(feature = "http3")]
+            http3_config: self.http3_config,
         }
     }
 
@@ -1235,6 +1251,21 @@ impl<RpcMiddleware> RpcServerConfig<RpcMiddleware> {
     /// Configures the JWT secret for authentication.
     pub const fn with_jwt_secret(mut self, secret: Option<JwtSecret>) -> Self {
         self.jwt_secret = secret;
+        self
+    }
+
+    /// Enable HTTP/3 support
+    #[cfg(feature = "http3")]
+    pub const fn enable_http3(mut self) -> Self {
+        self.http3_enabled = true;
+        self
+    }
+
+    /// Configure HTTP/3 settings
+    #[cfg(feature = "http3")]
+    pub fn with_http3_config(mut self, config: Http3Config) -> Self {
+        self.http3_enabled = true;
+        self.http3_config = Some(config);
         self
     }
 
@@ -1349,6 +1380,20 @@ impl<RpcMiddleware> RpcServerConfig<RpcMiddleware> {
             modules.config.ensure_ws_http_identical()?;
 
             if let Some(config) = self.http_server_config {
+                // Enable HTTP/3 if configured
+                #[cfg(feature = "http3")]
+                let config = if self.http3_enabled {
+                    let mut config = config.enable_http3();
+                    if let Some(http3_config) = self.http3_config {
+                        config = config.with_http3_config(http3_config);
+                    }
+                    config
+                } else {
+                    config
+                };
+                #[cfg(not(feature = "http3"))]
+                let config = config;
+
                 let server = ServerBuilder::new()
                     .set_http_middleware(
                         tower::ServiceBuilder::new()
@@ -1425,6 +1470,20 @@ impl<RpcMiddleware> RpcServerConfig<RpcMiddleware> {
         }
 
         if let Some(config) = self.http_server_config {
+            // Enable HTTP/3 if configured
+            #[cfg(feature = "http3")]
+            let config = if self.http3_enabled {
+                let mut config = config.enable_http3();
+                if let Some(http3_config) = self.http3_config {
+                    config = config.with_http3_config(http3_config);
+                }
+                config
+            } else {
+                config
+            };
+            #[cfg(not(feature = "http3"))]
+            let config = config;
+
             let server = ServerBuilder::new()
                 .set_config(config.http_only().build())
                 .set_http_middleware(
@@ -2089,20 +2148,20 @@ impl RpcServerHandle {
     }
 
     /// Returns a http client connected to the server.
-    pub fn http_client(&self) -> Option<jsonrpsee::http_client::HttpClient> {
+    pub async fn http_client(&self) -> Option<jsonrpsee::http_client::HttpClient> {
         let url = self.http_url()?;
 
         let client = if let Some(token) = self.bearer_token() {
             jsonrpsee::http_client::HttpClientBuilder::default()
                 .set_headers(HeaderMap::from_iter([(AUTHORIZATION, token.parse().unwrap())]))
                 .build(url)
+                .await
         } else {
-            jsonrpsee::http_client::HttpClientBuilder::default().build(url)
+            jsonrpsee::http_client::HttpClientBuilder::default().build(url).await
         };
 
-        client.expect("failed to create http client").into()
+        Some(client.expect("failed to create http client"))
     }
-
     /// Returns a ws client connected to the server.
     pub async fn ws_client(&self) -> Option<jsonrpsee::ws_client::WsClient> {
         let url = self.ws_url()?;

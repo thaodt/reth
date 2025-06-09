@@ -173,6 +173,7 @@ where
                 for node in &nodes {
                     let rpc = node
                         .rpc_client()
+                        .await
                         .ok_or_else(|| eyre!("Failed to create HTTP RPC client for node"))?;
                     let auth = node.auth_server_handle();
 

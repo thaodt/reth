@@ -182,7 +182,7 @@ mod tests {
     async fn test_call_transaction_count_http() {
         let server_addr = start_server().await;
         let uri = format!("http://{server_addr}");
-        let client = HttpClientBuilder::default().build(&uri).unwrap();
+        let client = HttpClientBuilder::default().build(&uri).await.unwrap();
         let count = TxpoolExtApiClient::transaction_count(&client).await.unwrap();
         assert_eq!(count, 0);
     }

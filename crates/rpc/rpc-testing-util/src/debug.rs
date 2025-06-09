@@ -388,7 +388,7 @@ mod tests {
     async fn can_trace_noop_sepolia() {
         let tx = TX_1.parse().unwrap();
         let url = parse_env_url("RETH_RPC_TEST_NODE_URL").unwrap();
-        let client = HttpClientBuilder::default().build(url).unwrap();
+        let client = HttpClientBuilder::default().build(url).await.unwrap();
         let res =
             client.debug_trace_transaction_json(tx, NoopJsTracer::default().into()).await.unwrap();
         assert_eq!(res, serde_json::Value::Object(Default::default()));
@@ -399,7 +399,7 @@ mod tests {
     async fn can_trace_default_template() {
         let tx = TX_1.parse().unwrap();
         let url = parse_env_url("RETH_RPC_TEST_NODE_URL").unwrap();
-        let client = HttpClientBuilder::default().build(url).unwrap();
+        let client = HttpClientBuilder::default().build(url).await.unwrap();
         let res = client
             .debug_trace_transaction_json(tx, JsTracerBuilder::default().into())
             .await
@@ -412,7 +412,7 @@ mod tests {
     async fn can_debug_trace_block_transactions() {
         let block = 11_117_104u64;
         let url = parse_env_url("RETH_RPC_TEST_NODE_URL").unwrap();
-        let client = HttpClientBuilder::default().build(url).unwrap();
+        let client = HttpClientBuilder::default().build(url).await.unwrap();
 
         let opts = GethDebugTracingOptions::default()
             .with_call_config(CallConfig::default().only_top_call());

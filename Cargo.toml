@@ -159,6 +159,7 @@ members = [
     "examples/node-event-hooks/",
     "examples/polygon-p2p/",
     "examples/rpc-db/",
+    "examples/rpc-http3/",
     "examples/precompile-cache/",
     "examples/txpool-tracing/",
     "examples/custom-beacon-withdrawals",
@@ -610,6 +611,13 @@ http-body = "1.0"
 http-body-util = "0.1.2"
 jsonwebtoken = "9"
 proptest-arbitrary-interop = "0.1.0"
+# http3 dependencies
+h3 = "0.0.8"
+h3-quinn = "0.0.10"
+quinn = "0.11"
+rcgen = "0.13"
+rustls = "0.23"
+rustls-pemfile = "2.2"
 
 # crypto
 enr = { version = "0.13", default-features = false }
@@ -702,6 +710,11 @@ walkdir = "2.3.3"
 vergen-git2 = "1.0.5"
 
 [patch.crates-io]
+jsonrpsee = { path = "/run/media/thaodinh/Maxtor/RISE/jsonrpsee/jsonrpsee" }
+jsonrpsee-core = { path = "/run/media/thaodinh/Maxtor/RISE/jsonrpsee/core" }
+jsonrpsee-server = { path = "/run/media/thaodinh/Maxtor/RISE/jsonrpsee/server" }
+jsonrpsee-http-client = { path = "/run/media/thaodinh/Maxtor/RISE/jsonrpsee/client/http-client" }
+jsonrpsee-types = { path = "/run/media/thaodinh/Maxtor/RISE/jsonrpsee/types" }
 # alloy-consensus = { git = "https://github.com/alloy-rs/alloy", branch = "main" }
 # alloy-contract = { git = "https://github.com/alloy-rs/alloy", branch = "main" }
 # alloy-eips = { git = "https://github.com/alloy-rs/alloy", branch = "main" }

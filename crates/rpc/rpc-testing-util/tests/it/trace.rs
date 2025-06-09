@@ -24,7 +24,7 @@ async fn trace_many_blocks() {
     }
     let url = url.unwrap();
 
-    let client = HttpClientBuilder::default().build(url).unwrap();
+    let client = HttpClientBuilder::default().build(url).await.unwrap();
     let mut stream = client.trace_block_buffered_unordered(15_000_000..=16_000_100, 20);
     let now = Instant::now();
     while let Some((err, block)) = stream.next_err().await {
@@ -38,7 +38,7 @@ async fn trace_many_blocks() {
 #[ignore]
 async fn replay_transactions() {
     let url = parse_env_url("RETH_RPC_TEST_NODE_URL").unwrap();
-    let client = HttpClientBuilder::default().build(url).unwrap();
+    let client = HttpClientBuilder::default().build(url).await.unwrap();
 
     let tx_hashes = vec![
         "0x4e08fe36db723a338e852f89f613e606b0c9a17e649b18b01251f86236a2cef3".parse().unwrap(),
@@ -61,7 +61,7 @@ async fn replay_transactions() {
 async fn trace_filters() {
     // Parse the node URL from environment variable and create an HTTP client.
     let url = parse_env_url("RETH_RPC_TEST_NODE_URL").unwrap();
-    let client = HttpClientBuilder::default().build(url).unwrap();
+    let client = HttpClientBuilder::default().build(url).await.unwrap();
 
     // Set up trace filters.
     let filter = TraceFilter::default();
@@ -80,7 +80,7 @@ async fn trace_filters() {
 #[ignore]
 async fn trace_call() {
     let url = parse_env_url("RETH_RPC_TEST_NODE_URL").unwrap();
-    let client = HttpClientBuilder::default().build(url).unwrap();
+    let client = HttpClientBuilder::default().build(url).await.unwrap();
     let trace_call_request = TraceCallRequest::default();
     let mut stream = client.trace_call_stream(trace_call_request);
     let start_time = Instant::now();
@@ -111,7 +111,7 @@ async fn debug_trace_block_entire_chain() {
     }
     let url = url.unwrap();
 
-    let client = HttpClientBuilder::default().build(url).unwrap();
+    let client = HttpClientBuilder::default().build(url).await.unwrap();
     let current_block: u64 =
         <HttpClient as EthApiClient<Transaction, Block, Receipt, Header>>::block_number(&client)
             .await
@@ -140,7 +140,7 @@ async fn debug_trace_block_opcodes_entire_chain() {
     }
     let url = url.unwrap();
 
-    let client = HttpClientBuilder::default().build(url).unwrap();
+    let client = HttpClientBuilder::default().build(url).await.unwrap();
     let current_block: u64 =
         <HttpClient as EthApiClient<Transaction, Block, Receipt, Header>>::block_number(&client)
             .await

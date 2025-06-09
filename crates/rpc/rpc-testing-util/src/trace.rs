@@ -589,7 +589,7 @@ mod tests {
 
     #[tokio::test]
     async fn can_create_block_stream() {
-        let client = HttpClientBuilder::default().build("http://localhost:8545").unwrap();
+        let client = HttpClientBuilder::default().build("http://localhost:8545").await.unwrap();
         let block = vec![BlockId::Number(5u64.into()), BlockNumberOrTag::Latest.into()];
         let stream = client.trace_block_buffered(block, 2);
         assert_is_stream(&stream);
@@ -598,7 +598,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn can_create_replay_transaction_stream() {
-        let client = HttpClientBuilder::default().build("http://localhost:8545").unwrap();
+        let client = HttpClientBuilder::default().build("http://localhost:8545").await.unwrap();
 
         // Assuming you have some transactions you want to test, replace with actual hashes.
         let transactions = vec![
@@ -634,7 +634,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn can_create_trace_call_many_stream() {
-        let client = HttpClientBuilder::default().build("http://localhost:8545").unwrap();
+        let client = HttpClientBuilder::default().build("http://localhost:8545").await.unwrap();
 
         let call_request_1 = TransactionRequest::default();
         let call_request_2 = TransactionRequest::default();
@@ -659,7 +659,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn can_create_trace_get_stream() {
-        let client = HttpClientBuilder::default().build("http://localhost:8545").unwrap();
+        let client = HttpClientBuilder::default().build("http://localhost:8545").await.unwrap();
 
         let tx_hash: B256 = "".parse().unwrap();
 
@@ -682,7 +682,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn can_create_trace_filter() {
-        let client = HttpClientBuilder::default().build("http://localhost:8545").unwrap();
+        let client = HttpClientBuilder::default().build("http://localhost:8545").await.unwrap();
 
         let filter = TraceFilter {
             from_block: None,
@@ -712,7 +712,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn can_create_trace_call_stream() {
-        let client = HttpClientBuilder::default().build("http://localhost:8545").unwrap();
+        let client = HttpClientBuilder::default().build("http://localhost:8545").await.unwrap();
 
         let trace_call_request = TraceCallRequest::default();
 
@@ -742,7 +742,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn block_opcode_gas_stream() {
-        let client = HttpClientBuilder::default().build("http://localhost:8545").unwrap();
+        let client = HttpClientBuilder::default().build("http://localhost:8545").await.unwrap();
         let block = vec![BlockNumberOrTag::Latest];
         let mut stream = client.trace_block_opcode_gas_unordered(block, 2);
         assert_is_stream(&stream);

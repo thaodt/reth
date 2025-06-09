@@ -92,3 +92,5 @@ test-utils = [
     "reth-primitives-traits/test-utils",
     "reth-evm-ethereum/test-utils",
 ]
+
+http3 = ["reth-node-builder/http3"]

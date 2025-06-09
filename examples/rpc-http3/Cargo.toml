@@ -1,0 +1,23 @@
+[package]
+name = "example-rpc-http3"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+reth-ethereum = { workspace = true, features = ["node", "pool", "cli"] }
+reth-rpc-builder = { workspace = true, features = ["http3"] }
+reth-rpc = { workspace = true }
+
+clap = { workspace = true, features = ["derive"] }
+jsonrpsee = { workspace = true, features = ["server", "macros", "http3", "http-client"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "signal"] }
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+eyre.workspace = true
+
+# HTTP/3 dependencies (rcgen is used transitively by jsonrpsee for self-signed certificates)
+
+[dev-dependencies]
